@@ -66,9 +66,8 @@ class Api:
             raise ApiUrlError("api_version {0} is not a string.".format(api_version))
         self.api_version = api_version
 
-        if api_token:
-            if not isinstance(api_token, ("".__class__, "".__class__)):
-                raise ApiAuthorizationError("Api token passed is not a string.")
+        if api_token and not isinstance(api_token, ("".__class__, "".__class__)):
+            raise ApiAuthorizationError("Api token passed is not a string.")
         self.api_token = api_token
 
         if self.base_url:
@@ -112,8 +111,7 @@ class Api:
             Response object of requests library.
 
         """
-        params = {}
-        params["User-Agent"] = "pydataverse"
+        params = {"User-Agent": "pydataverse"}
         if self.api_token:
             params["key"] = str(self.api_token)
 
@@ -165,16 +163,11 @@ class Api:
             Response object of requests library.
 
         """
-        params = {}
-        params["User-Agent"] = "pydataverse"
+        params = {"User-Agent": "pydataverse"}
         if self.api_token:
             params["key"] = self.api_token
 
-        if header:
-            kwargs = {"headers": {"content-type": header}}
-        else:
-            kwargs = {}
-
+        kwargs = {"headers": {"content-type": header}} if header else {}
         try:
             resp = post(url, data=data, params=params, files=files, **kwargs)
             if resp.status_code == 401:
@@ -211,8 +204,7 @@ class Api:
             Response object of requests library.
 
         """
-        params = {}
-        params["User-Agent"] = "pydataverse"
+        params = {"User-Agent": "pydataverse"}
         if self.api_token:
             params["key"] = self.api_token
 
@@ -250,8 +242,7 @@ class Api:
             Response object of requests library.
 
         """
-        params = {}
-        params["User-Agent"] = "pydataverse"
+        params = {"User-Agent": "pydataverse"}
         if self.api_token:
             params["key"] = self.api_token
 
@@ -259,7 +250,7 @@ class Api:
             return delete(url, params=params)
         except ConnectionError:
             raise ConnectionError(
-                "ERROR: DELETE could not establish connection to api {}.".format(url)
+                f"ERROR: DELETE could not establish connection to api {url}."
             )
 
 
@@ -469,10 +460,7 @@ class DataAccessApi(Api):
                 self.base_url_api_data_access, identifier
             )
 
-        if do_allow:
-            data = "true"
-        else:
-            data = "false"
+        data = "true" if do_allow else "false"
         return self.put_request(url, data=data, auth=auth)
 
     def grant_file_access(self, identifier, user, auth=False):
@@ -724,7 +712,7 @@ class NativeApi(Api):
                     parent, error_msg
                 )
             )
-        elif resp.status_code != 200 and resp.status_code != 201:
+        elif resp.status_code not in [200, 201]:
             error_msg = resp.json()["message"]
             raise OperationFailedError(
                 "ERROR: HTTP {0} - Dataverse {1} could not be created. MSG: {2}".format(
@@ -790,7 +778,7 @@ class NativeApi(Api):
                     resp.status_code, identifier, error_msg
                 )
             )
-        elif resp.status_code == 200:
+        else:
             print("Dataverse {0} published.".format(identifier))
         return resp
 
@@ -843,7 +831,7 @@ class NativeApi(Api):
                     resp.status_code, identifier, error_msg
                 )
             )
-        elif resp.status_code == 200:
+        else:
             print("Dataverse {0} deleted.".format(identifier))
         return resp
 
@@ -956,9 +944,8 @@ class NativeApi(Api):
 
         """
         resp = self.get_dataverse(dataverse_id, auth=auth)
-        if "data" in resp.json():
-            if "alias" in resp.json()["data"]:
-                return resp.json()["data"]["alias"]
+        if "data" in resp.json() and "alias" in resp.json()["data"]:
+            return resp.json()["data"]["alias"]
         print("ERROR: Can not resolve Dataverse ID to alias.")
         return False
 
@@ -1193,10 +1180,7 @@ class NativeApi(Api):
             url = "{0}/dataverses/{1}/datasets/:import?pid={2}".format(
                 self.base_url_api_native, dataverse, pid
             )
-            if publish:
-                url += "&release=yes"
-            else:
-                url += "&release=no"
+            url += "&release=yes" if publish else "&release=no"
         else:
             url = "{0}/dataverses/{1}/datasets".format(
                 self.base_url_api_native, dataverse
@@ -1754,8 +1738,10 @@ class NativeApi(Api):
             query_str = "{0}/files/{1}/metadata".format(
                 self.base_url_api_native, identifier
             )
-        shell_command = 'curl -H "X-Dataverse-key: {0}"'.format(self.api_token)
-        shell_command += " -X POST -F 'jsonData={0}' {1}".format(json_str, query_str)
+        shell_command = 'curl -H "X-Dataverse-key: {0}"'.format(
+            self.api_token
+        ) + " -X POST -F 'jsonData={0}' {1}".format(json_str, query_str)
+
         # TODO(Shell): is shell=True necessary?
         return sp.run(shell_command, shell=True, stdout=sp.PIPE)
 
@@ -2165,16 +2151,17 @@ class NativeApi(Api):
             pid = parent
             resp = self.get_datafiles_metadata(parent, version=":latest")
             if "data" in resp.json():
-                for datafile in resp.json()["data"]:
-                    children.append(
-                        {
-                            "datafile_id": datafile["dataFile"]["id"],
-                            "filename": datafile["dataFile"]["filename"],
-                            "label": datafile["label"],
-                            "pid": datafile["dataFile"]["persistentId"],
-                            "type": "datafile",
-                        }
-                    )
+                children.extend(
+                    {
+                        "datafile_id": datafile["dataFile"]["id"],
+                        "filename": datafile["dataFile"]["filename"],
+                        "label": datafile["label"],
+                        "pid": datafile["dataFile"]["persistentId"],
+                        "type": "datafile",
+                    }
+                    for datafile in resp.json()["data"]
+                )
+
             else:
                 print("ERROR: 'get_datafiles()' API request not working.")
         return children
@@ -2210,10 +2197,7 @@ class NativeApi(Api):
         Response
             Request Response() object.
         """
-        if dry_run is True:
-            dry_run_str = "true"
-        elif dry_run is False:
-            dry_run_str = "false"
+        dry_run_str = "true" if dry_run else "false"
         if is_pid:
             url = f"{self.base_url_api_native}/files/:persistentId/redetect?persistentId={identifier}&dryRun={dry_run_str}"
         else:

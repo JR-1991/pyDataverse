@@ -60,8 +60,8 @@ class TestUtilsSaveTreeData:
             dv_aliases.pop(dv_aliases.index(dv["dataverse_alias"]))
             assert dv["dataverse_id"] in dv_ids
             dv_ids.pop(dv_ids.index(dv["dataverse_id"]))
-        assert (len(dv_aliases)) == 0
-        assert (len(dv_ids)) == 0
+        assert not dv_aliases
+        assert not dv_ids
 
         for ds in datasets:
             assert "dataset_id" in ds
@@ -70,8 +70,8 @@ class TestUtilsSaveTreeData:
             ds_ids.pop(ds_ids.index(ds["dataset_id"]))
             assert ds["pid"] in ds_pids
             ds_pids.pop(ds_pids.index(ds["pid"]))
-        assert (len(ds_ids)) == 0
-        assert (len(ds_pids)) == 0
+        assert not ds_ids
+        assert not ds_pids
 
         for df in datafiles:
             assert "datafile_id" in df
@@ -86,6 +86,6 @@ class TestUtilsSaveTreeData:
             df_labels.pop(df_labels.index(df["label"]))
             assert df["pid"] in df_pids
             df_pids.pop(df_pids.index(df["pid"]))
-        assert (len(df_ids)) == 0
-        assert (len(df_filenames)) == 0
-        assert (len(df_pids)) == 0
+        assert not df_ids
+        assert not df_filenames
+        assert not df_pids

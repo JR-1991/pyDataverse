@@ -317,10 +317,7 @@ def read_csv_as_dicts(
 
     with open(filename, "r", newline=newline, encoding=encoding) as csvfile:
         reader = csv.DictReader(csvfile, delimiter=delimiter, quotechar=quotechar)
-        data = []
-        for row in reader:
-            data.append(dict(row))
-
+        data = [dict(row) for row in reader]
     data_tmp = []
     for ds in data:
         ds_tmp = {}
@@ -351,12 +348,11 @@ def read_csv_as_dicts(
     if len(json_cols) > 0:
         data_tmp = []
         for ds in data:
-            ds_tmp = {}
-            for key, val in ds.items():
-                if key in json_cols:
-                    ds_tmp[key] = json.loads(val)
-                else:
-                    ds_tmp[key] = val
+            ds_tmp = {
+                key: json.loads(val) if key in json_cols else val
+                for key, val in ds.items()
+            }
+
             data_tmp.append(ds_tmp)
         data = data_tmp
 
@@ -395,7 +391,7 @@ def write_dicts_as_csv(data, fieldnames, filename, delimiter=",", quotechar='"')
 
         for d in data:
             for key, val in d.items():
-                if isinstance(val, dict) or isinstance(val, list):
+                if isinstance(val, (dict, list)):
                     d[key] = json.dump(val)
             writer.writerow(d)
 
@@ -593,29 +589,19 @@ def dataverse_tree_walker(
             datafiles += df
     elif type(data) == dict:
         if data["type"] == "dataverse":
-            dv_tmp = {}
-            for key in dv_keys:
-                if key in data:
-                    dv_tmp[key] = data[key]
+            dv_tmp = {key: data[key] for key in dv_keys if key in data}
             dataverses.append(dv_tmp)
         elif data["type"] == "dataset":
-            ds_tmp = {}
-            for key in ds_keys:
-                if key in data:
-                    ds_tmp[key] = data[key]
+            ds_tmp = {key: data[key] for key in ds_keys if key in data}
             datasets.append(ds_tmp)
         elif data["type"] == "datafile":
-            df_tmp = {}
-            for key in df_keys:
-                if key in data:
-                    df_tmp[key] = data[key]
+            df_tmp = {key: data[key] for key in df_keys if key in data}
             datafiles.append(df_tmp)
-        if "children" in data:
-            if len(data["children"]) > 0:
-                dv, ds, df = dataverse_tree_walker(data["children"])
-                dataverses += dv
-                datasets += ds
-                datafiles += df
+        if "children" in data and len(data["children"]) > 0:
+            dv, ds, df = dataverse_tree_walker(data["children"])
+            dataverses += dv
+            datasets += ds
+            datafiles += df
     return dataverses, datasets, datafiles
 
 
@@ -651,11 +637,11 @@ def save_tree_data(
         os.remove(filename_ds)
     if os.path.isfile(filename_df):
         os.remove(filename_df)
-    if len(dataverses) > 0:
+    if dataverses:
         write_json(filename_dv, dataverses)
-    if len(datasets) > 0:
+    if datasets:
         write_json(filename_ds, datasets)
-    if len(datafiles) > 0:
+    if datafiles:
         write_json(filename_df, datafiles)
     metadata = {
         "dataverses": len(dataverses),

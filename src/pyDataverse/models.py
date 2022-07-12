@@ -70,11 +70,12 @@ class DVObject:
             Data in a flat data structure.
 
         """
-        data = {}
+        data = {
+            attr: self.__getattribute__(attr)
+            for attr in list(self.__dict__.keys())
+            if attr not in INTERNAL_ATTRIBUTES
+        }
 
-        for attr in list(self.__dict__.keys()):
-            if attr not in INTERNAL_ATTRIBUTES:
-                data[attr] = self.__getattribute__(attr)
 
         assert isinstance(data, dict)
         return data
@@ -162,16 +163,8 @@ class DVObject:
                             key, data_format
                         )
                     )
-        elif data_format == "dataverse_download":
+        elif data_format in ["dataverse_download", "dspace", "custom"]:
             print("INFO: Not implemented yet.")
-        elif data_format == "dspace":
-            print("INFO: Not implemented yet.")
-        elif data_format == "custom":
-            print("INFO: Not implemented yet.")
-        else:
-            # TODO: add exception for wrong data format
-            pass
-
         self.set(data)
 
     def json(self, data_format=None, validate=True, filename_schema=None):
@@ -212,10 +205,7 @@ class DVObject:
                 # check if attribute exists
                 if hasattr(self, attr):
                     data[attr] = self.__getattribute__(attr)
-        elif data_format == "dspace":
-            print("INFO: Not implemented yet.")
-            return False
-        elif data_format == "custom":
+        elif data_format in ["dspace", "custom"]:
             print("INFO: Not implemented yet.")
             return False
         if validate:
@@ -263,8 +253,9 @@ class Dataverse(DVObject):
 
         """
         self._internal_attributes = [
-            "_Dataverse" + attr for attr in INTERNAL_ATTRIBUTES
+            f"_Dataverse{attr}" for attr in INTERNAL_ATTRIBUTES
         ]
+
 
         super().__init__(data=data)
 
@@ -547,7 +538,7 @@ class Dataset(DVObject):
             'schemas/json/dataset_upload_default_schema.json'
 
         """
-        self._internal_attributes = ["_Dataset" + attr for attr in INTERNAL_ATTRIBUTES]
+        self._internal_attributes = [f"_Dataset{attr}" for attr in INTERNAL_ATTRIBUTES]
 
         super().__init__(data=data)
 
@@ -682,16 +673,14 @@ class Dataset(DVObject):
 
         is_valid = True
 
-        data_json = self.json(validate=False)
-        if data_json:
-            is_valid = validate_data(
-                json.loads(data_json), filename_schema, file_format="json"
-            )
-            if not is_valid:
-                return False
-        else:
+        if not (data_json := self.json(validate=False)):
             return False
 
+        is_valid = validate_data(
+            json.loads(data_json), filename_schema, file_format="json"
+        )
+        if not is_valid:
+            return False
         # check if all required attributes are set
         for attr in self.__attr_dict_dv_up_required:
             if attr in list(self.__dict__.keys()):
@@ -704,100 +693,98 @@ class Dataset(DVObject):
 
         # check if attributes set are complete where necessary
         if "timePeriodCovered" in list(self.__dict__.keys()):
-            tp_cov = self.__getattribute__("timePeriodCovered")
-            if tp_cov:
+            if tp_cov := self.__getattribute__("timePeriodCovered"):
                 for tp in tp_cov:
-                    if "timePeriodCoveredStart" in tp or "timePeriodCoveredEnd" in tp:
-                        if not (
-                            "timePeriodCoveredStart" in tp
-                            and "timePeriodCoveredEnd" in tp
-                        ):
-                            is_valid = False
-                            print("timePeriodCovered attribute missing.")
+                    if (
+                        "timePeriodCoveredStart" in tp
+                        or "timePeriodCoveredEnd" in tp
+                    ) and not (
+                        "timePeriodCoveredStart" in tp
+                        and "timePeriodCoveredEnd" in tp
+                    ):
+                        is_valid = False
+                        print("timePeriodCovered attribute missing.")
 
         if "dateOfCollection" in list(self.__dict__.keys()):
-            d_coll = self.__getattribute__("dateOfCollection")
-            if d_coll:
+            if d_coll := self.__getattribute__("dateOfCollection"):
                 for d in d_coll:
-                    if "dateOfCollectionStart" in d or "dateOfCollectionEnd" in d:
-                        if not (
-                            "dateOfCollectionStart" in d and "dateOfCollectionEnd" in d
-                        ):
-                            is_valid = False
-                            print("dateOfCollection attribute missing.")
+                    if (
+                        "dateOfCollectionStart" in d or "dateOfCollectionEnd" in d
+                    ) and not (
+                        "dateOfCollectionStart" in d and "dateOfCollectionEnd" in d
+                    ):
+                        is_valid = False
+                        print("dateOfCollection attribute missing.")
 
         if "author" in list(self.__dict__.keys()):
-            authors = self.__getattribute__("author")
-            if authors:
+            if authors := self.__getattribute__("author"):
                 for a in authors:
                     if (
-                        "authorAffiliation" in a
-                        or "authorIdentifierScheme" in a
-                        or "authorIdentifier" in a
-                    ):
-                        if "authorName" not in a:
-                            is_valid = False
-                            print("author attribute missing.")
+                        (
+                            "authorAffiliation" in a
+                            or "authorIdentifierScheme" in a
+                            or "authorIdentifier" in a
+                        )
+                    ) and "authorName" not in a:
+                        is_valid = False
+                        print("author attribute missing.")
 
         if "datasetContact" in list(self.__dict__.keys()):
-            ds_contac = self.__getattribute__("datasetContact")
-            if ds_contac:
+            if ds_contac := self.__getattribute__("datasetContact"):
                 for c in ds_contac:
-                    if "datasetContactAffiliation" in c or "datasetContactEmail" in c:
-                        if "datasetContactName" not in c:
-                            is_valid = False
-                            print("datasetContact attribute missing.")
+                    if (
+                        "datasetContactAffiliation" in c
+                        or "datasetContactEmail" in c
+                    ) and "datasetContactName" not in c:
+                        is_valid = False
+                        print("datasetContact attribute missing.")
 
         if "producer" in list(self.__dict__.keys()):
-            producer = self.__getattribute__("producer")
-            if producer:
+            if producer := self.__getattribute__("producer"):
                 for p in producer:
                     if (
-                        "producerAffiliation" in p
-                        or "producerAbbreviation" in p
-                        or "producerURL" in p
-                        or "producerLogoURL" in p
-                    ):
-                        if not p["producerName"]:
-                            is_valid = False
-                            print("producer attribute missing.")
+                        (
+                            "producerAffiliation" in p
+                            or "producerAbbreviation" in p
+                            or "producerURL" in p
+                            or "producerLogoURL" in p
+                        )
+                    ) and not p["producerName"]:
+                        is_valid = False
+                        print("producer attribute missing.")
 
         if "contributor" in list(self.__dict__.keys()):
-            contributor = self.__getattribute__("contributor")
-            if contributor:
+            if contributor := self.__getattribute__("contributor"):
                 for c in contributor:
-                    if "contributorType" in c:
-                        if "contributorName" not in c:
-                            is_valid = False
-                            print("contributor attribute missing.")
+                    if "contributorType" in c and "contributorName" not in c:
+                        is_valid = False
+                        print("contributor attribute missing.")
 
         if "distributor" in list(self.__dict__.keys()):
-            distributor = self.__getattribute__("distributor")
-            if distributor:
+            if distributor := self.__getattribute__("distributor"):
                 for d in distributor:
                     if (
-                        "distributorAffiliation" in d
-                        or "distributorAbbreviation" in d
-                        or "distributorURL" in d
-                        or "distributorLogoURL" in d
-                    ):
-                        if "distributorName" not in d:
-                            is_valid = False
-                            print("distributor attribute missing.")
+                        (
+                            "distributorAffiliation" in d
+                            or "distributorAbbreviation" in d
+                            or "distributorURL" in d
+                            or "distributorLogoURL" in d
+                        )
+                    ) and "distributorName" not in d:
+                        is_valid = False
+                        print("distributor attribute missing.")
 
         if "geographicBoundingBox" in list(self.__dict__.keys()):
-            bbox = self.__getattribute__("geographicBoundingBox")
-            if bbox:
+            if bbox := self.__getattribute__("geographicBoundingBox"):
                 for b in bbox:
-                    if b:
-                        if not (
-                            "westLongitude" in b
-                            and "eastLongitude" in b
-                            and "northLongitude" in b
-                            and "southLongitude" in b
-                        ):
-                            is_valid = False
-                            print("geographicBoundingBox attribute missing.")
+                    if b and not (
+                        "westLongitude" in b
+                        and "eastLongitude" in b
+                        and "northLongitude" in b
+                        and "southLongitude" in b
+                    ):
+                        is_valid = False
+                        print("geographicBoundingBox attribute missing.")
 
         assert isinstance(is_valid, bool)
         return is_valid
@@ -856,7 +843,7 @@ class Dataset(DVObject):
             # dataset
             # get first level metadata and parse it automatically
             for key, val in json_dict["datasetVersion"].items():
-                if not key == "metadataBlocks":
+                if key != "metadataBlocks":
                     if key in self.__attr_import_dv_up_datasetVersion_values:
                         data[key] = val
                     else:
@@ -906,10 +893,6 @@ class Dataset(DVObject):
                                     field["typeName"]
                                 )
                             )
-                else:
-                    # TODO: Exception
-                    pass
-
                 # geospatial
                 if "geospatial" in json_dict["datasetVersion"]["metadataBlocks"]:
                     geospatial = json_dict["datasetVersion"]["metadataBlocks"][
@@ -942,10 +925,6 @@ class Dataset(DVObject):
                                     field["typeName"]
                                 )
                             )
-                else:
-                    # TODO: Exception
-                    pass
-
                 # socialscience
                 if "socialscience" in json_dict["datasetVersion"]["metadataBlocks"]:
                     socialscience = json_dict["datasetVersion"]["metadataBlocks"][
@@ -993,10 +972,6 @@ class Dataset(DVObject):
                                     field["typeName"]
                                 )
                             )
-                else:
-                    # TODO: Exception
-                    pass
-
                 # journal
                 if "journal" in json_dict["datasetVersion"]["metadataBlocks"]:
                     journal = json_dict["datasetVersion"]["metadataBlocks"]["journal"]
@@ -1026,14 +1001,7 @@ class Dataset(DVObject):
                                     field["typeName"]
                                 )
                             )
-                else:
-                    # TODO: Exception
-                    pass
-        elif data_format == "dataverse_download":
-            print("INFO: Not implemented yet.")
-        elif data_format == "dspace":
-            print("INFO: Not implemented yet.")
-        elif data_format == "custom":
+        elif data_format in ["dataverse_download", "dspace", "custom"]:
             print("INFO: Not implemented yet.")
         self.set(data)
 
@@ -1102,10 +1070,7 @@ class Dataset(DVObject):
                     if k in sub_keys:
                         multiple = None
                         type_class = None
-                        if isinstance(v, list):
-                            multiple = True
-                        else:
-                            multiple = False
+                        multiple = isinstance(v, list)
                         if k in self.__attr_dict_dv_up_type_class_primitive:
                             type_class = "primitive"
                         elif k in self.__attr_dict_dv_up_type_class_compound:
@@ -1114,11 +1079,13 @@ class Dataset(DVObject):
                             k in self.__attr_dict_dv_up_type_class_controlled_vocabulary
                         ):
                             type_class = "controlledVocabulary"
-                        tmp_dict[k] = {}
-                        tmp_dict[k]["typeName"] = k
-                        tmp_dict[k]["typeClass"] = type_class
-                        tmp_dict[k]["multiple"] = multiple
-                        tmp_dict[k]["value"] = v
+                        tmp_dict[k] = {
+                            "typeName": k,
+                            "typeClass": type_class,
+                            "multiple": multiple,
+                            "value": v,
+                        }
+
                 tmp_list.append(tmp_dict)
 
         assert isinstance(tmp_list, list)

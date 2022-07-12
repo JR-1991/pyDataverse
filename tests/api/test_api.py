@@ -52,7 +52,7 @@ class TestApiRequests(object):
         """Test successfull `.get_request()` request."""
         # TODO: test params und auth default
         base_url = os.getenv("BASE_URL")
-        query_str = base_url + "/api/v1/info/server"
+        query_str = f"{base_url}/api/v1/info/server"
         resp = native_api.get_request(query_str)
         sleep(test_config["wait_time"])
 

@@ -602,9 +602,8 @@ if not os.environ.get("TRAVIS"):
                 args = args_from
                 kwargs = kwargs_from
                 pdv_start.from_json(*args, **kwargs)
-                if "validate" in kwargs:
-                    if not kwargs["validate"]:
-                        kwargs = {"validate": False}
+                if "validate" in kwargs and not kwargs["validate"]:
+                    kwargs = {"validate": False}
                 data_out = json.loads(pdv_start.json(**kwargs))
                 write_json(test_config["dataverse_json_output_filename"], data_out)
                 data_in = read_file(test_config["dataverse_json_output_filename"])
