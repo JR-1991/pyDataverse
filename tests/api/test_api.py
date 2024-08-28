@@ -229,7 +229,7 @@ if not os.environ.get("TRAVIS"):
 
             auth = httpx.BasicAuth(API_TOKEN, "")
             response = httpx.get(
-                 "http://localhost:8080/dvn/api/data-deposit/v1.1/swordv2/service-document",
+                 "http://dataverse:8080/dvn/api/data-deposit/v1.1/swordv2/service-document",
                  auth=auth,
             )
 
