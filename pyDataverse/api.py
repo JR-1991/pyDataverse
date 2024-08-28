@@ -447,7 +447,7 @@ class Api:
 
         try:
             resp: httpx.Response = method(
-                **kwargs, auth=self.auth, follow_redirects=True, timeout=None
+                **kwargs, auth=self.auth, follow_redirects=True, timeout=None, verify=False
             )
             if resp.status_code == 401:
                 try:
