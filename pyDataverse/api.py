@@ -2688,4 +2688,5 @@ class SwordApi(Api):
 
     def get_service_document(self):
         url = "{0}/swordv2/service-document".format(self.base_url_api_sword)
+        print(url)
         return self.get_request(url, auth=True)
