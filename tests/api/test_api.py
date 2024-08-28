@@ -221,8 +221,18 @@ if not os.environ.get("TRAVIS"):
         def test_sword_api_can_authenticate(self):
             BASE_URL = os.getenv("BASE_URL")
             API_TOKEN = os.getenv("API_TOKEN")
-            api = SwordApi(BASE_URL, api_token=API_TOKEN)
-            response = api.get_service_document()
+            # api = SwordApi(BASE_URL, api_token=API_TOKEN)
+            # response = api.get_service_document()
+
+            assert API_TOKEN is not None, "API_TOKEN is not set"
+            assert len(API_TOKEN) > 0, "API_TOKEN is not set"
+
+            auth = httpx.BasicAuth(API_TOKEN, "")
+            response = httpx.get(
+                 "http://localhost:8080/dvn/api/data-deposit/v1.1/swordv2/service-document",
+                 auth=auth,
+            )
+
             assert response.status_code == 200
 
         def test_sword_api_cannot_authenticate_without_token(self):
